@@ -1,0 +1,10 @@
+Package: RcmdrPlugin.ISCSS
+Type: Package
+Title: Rcmdr package for Introduction to Statistics for Canadian Social Scientists
+Version: 0.1
+Date: 2017-09-25
+Author: Dave Armstrong <dave@quantoid.net>
+Maintainer: Dave Armstrong <dave@quantoid.net>
+Imports: Rcmdr, stats
+Description: Provides an Rcmdr "plug-in" to support Haan and Godley's An Introduction to Statistics for Canadian Social Scientists.
+License: GPL (>= 2)

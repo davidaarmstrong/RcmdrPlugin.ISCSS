@@ -1,0 +1,21 @@
+# Some Rcmdr menus for the package that goes along with An Introduction to Statistics for Canadian Social Scientists #
+# When the plug-in is loaded, these menus are merged with the standard Rcmdr menus
+
+# last modified: 25 September, 2017 by Dave Armstrong
+
+#   type    menu/item      operation/parent  label                              command/menu                activation    install?
+remove  barGraph    ""		""										""							""						""
+menu    ISCSSMenu       topMenu         ""                                      ""                          ""                      ""
+item    topMenu     cascade             "ISCSS"               ISCSSMenu             ""            ""
+menu    dataMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
+item    dataMenu.iscss      command          "Subset Data Set (including random sampling) ..."                                  subsetDataSet.iscss                   ""          ""
+item    ISCSSMenu        cascade         "Data"                                          dataMenu.iscss                    ""          ""
+menu    statsMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
+item    statsMenu.iscss       command         "Frequency Distribution..."              freqDist.iscss         ""                      ""
+item    statsMenu.iscss      command          "Numeric Summaries (all variables) ..."                                  numSumAll.iscss                   ""          ""
+item    statsMenu.iscss       command         "Unalikeability..."              unalike.iscss         ""                      ""
+item    statsMenu.iscss       command         "Confidence Interval"              ci.iscss         ""                      ""
+item    ISCSSMenu        cascade         "Statistics"                                          statsMenu.iscss                    ""          ""
+menu    graphsMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
+item    graphsMenu.iscss      command          "Discrete Histogram..."                                  histDiscrete.iscss                   ""          ""
+item    ISCSSMenu        cascade         "Graphs"                                          graphsMenu.iscss                    ""          ""
