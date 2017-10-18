@@ -25,6 +25,49 @@
         }
     }
 }
+
+plotCIgroup <- function(form, data, horiz=FALSE,
+    arrowlen = 0, includeOverall=TRUE, distr=c("normal", "t"), conflevel = .95, ...){
+    mf <- model.frame(form, data)
+    resp <- mf[,1]
+    fac <- mf[,2]
+    if(includeOverall){
+        lfac <- levels(fac)
+        fac <- factor(c(as.character(fac), rep("All Obs", length(resp))), levels=c(lfac, "All Obs"))
+        resp <- c(c(resp), c(resp))
+    }
+    ag <- do.call(rbind, by(resp, list(fac), function(x)confidenceInterval(x, distr=distr,
+       confidence=conflevel)))
+    ngroup <- nrow(ag)
+    if(!horiz){
+        yl <- range(c(ag[,2:3]))
+        xd <- (ngroup-1)*.25
+        xl <- c(1-xd, ngroup + xd)
+        plot(xl, yl, axes=F, type="n", xlab="", ...)
+        points(1:ngroup, ag[,1], ...)
+        axis(1, at=1:ngroup, labels=rownames(ag))
+        axis(2)
+        box()
+        arrows(1:ngroup, ag[,2], 1:ngroup, ag[,3], code=3, length=arrowlen)
+        if(includeOverall){
+            abline(v=(max(as.numeric(fac))-.5), lty=2)
+        }
+    }
+    if(horiz){
+        yl <- range(c(ag[,2:3]))
+        xd <- (ngroup-1)*.25
+        xl <- c(1-xd, ngroup + xd)
+        plot(yl, xl, axes=F, type="n", ylab="", ...)
+        points(ag[,1], 1:ngroup, ...)
+        axis(2, at=1:ngroup, labels=rownames(ag))
+        axis(1)
+        box()
+        arrows(ag[,2], 1:ngroup, ag[,3], 1:ngroup, code=3, length=arrowlen)
+        if(includeOverall){
+            abline(h=(max(as.numeric(fac))-.5), lty=2)
+        }
+    }
+}
 searchVarLabels <- function(dat, str) UseMethod("searchVarLabels")
 searchVarLabels.data.frame <-
 function (dat, str)
@@ -537,6 +580,87 @@ subsetDataSet.iscss <- function(){
     tkgrid(dataSetNameFrame, sticky="w")
     tkgrid(buttonsFrame, sticky="w")
     dialogSuffix()
+}
+
+
+plotCIgroup.iscss <- function(){
+    defaults <- list(initial.row=NULL, initial.column=NULL,initial.conflevel=95,
+      initial.ylab=gettextRcmdr("<auto>"), initial.distr="normal", initial.horizontal=0, initial.includeOverall = 1, initial.arrowlen=0)
+    dialog.values <- getDialog("plotCIgroup.iscss", defaults)
+    initializeDialog(title=gettextRcmdr("Plot CIs by Group"), use.tabs=FALSE)
+    variablesFrame <- tkframe(top)
+    optionsFrame <- tkframe(top)
+    optionsFrame2 <- tkframe(top)
+    parFrame <- ttklabelframe(optionsFrame2, labelwidget=tklabel(optionsFrame2,
+      text = gettextRcmdr("Plot Labels"),font="RcmdrTitleFont", foreground=getRcmdr("title.color")))
+    rowBox <- variableListBox(variablesFrame, selectmode="single",
+      title=gettextRcmdr("Quantitative Variable (pick one)"), initialSelection=NULL)
+    columnBox <- variableListBox(variablesFrame, selectmode="single",
+      title=gettextRcmdr("Grouping Variable (pick one)"), initialSelection=NULL)
+    conflevelVariable <- tclVar(gettextRcmdr("95"))
+    conflevelFrame <- tkframe(top)
+    conflevelEntry <- ttkentry(conflevelFrame, width="20", textvariable=conflevelVariable)
+    arrowlenVariable <- tclVar(gettextRcmdr("0"))
+    arrowlenFrame <- tkframe(top)
+    arrowlenEntry <- ttkentry(arrowlenFrame, width="20", textvariable=arrowlenVariable)
+    ylabVar <- tclVar(dialog.values$initial.ylab)
+    ylabEntry <- ttkentry(parFrame, width = "25", textvariable = ylabVar)
+    ylabScroll <- ttkscrollbar(parFrame, orient = "horizontal",
+      command = function(...) tkxview(ylabEntry, ...))
+    tkconfigure(ylabEntry, xscrollcommand = function(...) tkset(ylabScroll, ...))
+    tkgrid(labelRcmdr(parFrame, text = gettextRcmdr("y-axis label")), ylabEntry, sticky = "ew", padx=6)
+    tkgrid(labelRcmdr(parFrame, text =""), ylabScroll, sticky = "ew", padx=6)
+
+    onOK <- function() {
+      row <- getSelection(rowBox)
+      column <- getSelection(columnBox)
+      conflevel <- tclvalue(conflevelVariable)
+      arrowlen <- tclvalue(arrowlenVariable)
+      distr <- tclvalue(distrVariable)
+      horizontal <- tclvalue(horizontalVariable)
+      horizontal2 <- ifelse(horizontal == "0", FALSE, TRUE)
+      includeOverall <- tclvalue(includeOverallVariable)
+      includeOverall2 <- ifelse(includeOverall == "0", FALSE, TRUE)
+      ylab <- trim.blanks(tclvalue(ylabVar))
+      ylab2 <- if (ylab == gettextRcmdr("<auto>"))row
+        else ylab
+      putDialog("plotCIgroup.iscss", list(initial.row = row, intial.column = column,
+        initial.conflevel=conflevel, initial.ylab=ylab2, initial.distr=distr, initial.horizontal=horizontal, initial.includeOverall=includeOverall, initial.arrowlen=arrowlen))
+      closeDialog()
+        if (length(row) == 0 | length(col) == 0) {
+            errorCondition(recall = plotCIgroup.iscss, message = gettextRcmdr("You must select a quantitative variable and a grouping variable"))
+            return()
+        }
+        command <- paste("plotCIgroup(", row, "~", column, ", ", ActiveDataSet(), ", conflevel = ", as.numeric(conflevel)/100, ", horiz = ", horizontal2, ", includeOverall=", includeOverall2, ", arrowlen = ", as.numeric(arrowlen), ", distr = '", distr, "', ylab = '", ylab2, "')", sep="")
+        doItAndPrint(command)
+        activateMenus()
+        tkfocus(CommanderWindow())
+
+  }
+  OKCancelHelp(helpSubject = "plotCIgroup", reset = "plotCIgroup.iscss", apply = "plotCIgroup.iscss")
+ 	rightFrame <- tkframe(top)
+	radioButtons(top, name = "distr", buttons = c("normal", "t"), values = c("normal", "t"),
+	             labels = gettextRcmdr(c("Normal", "Student's T")),
+               title = gettextRcmdr("Distribution"),
+	             initialValue = dialog.values$initial.distr)
+  checkBoxes(top, frame="optionsFrame", boxes=c("horizontal", "includeOverall"),
+          initialValues=c(dialog.values$initial.horizontal, dialog.values$initial.includeOverall),
+          labels=gettextRcmdr(c("Horizontal Bars", "Include Overall Mean CI")))
+  tkgrid(getFrame(rowBox), labelRcmdr(variablesFrame, text="    "), getFrame(columnBox), sticky="nw")
+  tkgrid(variablesFrame, sticky="w")
+  tkgrid(optionsFrame, sticky="w")
+  tkgrid(labelRcmdr(conflevelFrame, text=gettextRcmdr("Confidence Level")), sticky="w")
+  tkgrid(conflevelEntry, sticky="w")
+  tkgrid(conflevelFrame, sticky="w")
+  tkgrid(labelRcmdr(arrowlenFrame, text=gettextRcmdr("Arrow Length")), sticky="w")
+  tkgrid(arrowlenEntry, sticky="w")
+  tkgrid(arrowlenFrame, sticky="w")
+  tkgrid(labelRcmdr(rightFrame, text = ""), sticky = "w")
+  tkgrid(distrFrame, rightFrame, sticky = "w")
+  tkgrid(optionsFrame2, sticky="w")
+  tkgrid(parFrame, sticky = "nw")
+  tkgrid(buttonsFrame, sticky="w")
+  dialogSuffix()
 }
 
 
