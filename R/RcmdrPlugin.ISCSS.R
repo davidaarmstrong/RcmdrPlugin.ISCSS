@@ -25,7 +25,32 @@
         }
     }
 }
+searchVarLabels <- function(dat, str) UseMethod("searchVarLabels")
+searchVarLabels.data.frame <-
+function (dat, str)
+{
+    if ("var.labels" %in% names(attributes(dat))) {
+        vlat <- "var.labels"
+    }
+    if ("variable.labels" %in% names(attributes(dat))) {
+        vlat <- "variable.labels"
+    }
+    ind <- sort(union(grep(str, attr(dat, vlat), ignore.case = T), grep(str, names(dat), ignore.case = T)))
+    vldf <- data.frame(ind = ind, label = attr(dat, vlat)[ind])
+    rownames(vldf) <- names(dat)[ind]
+    vldf
+}
+searchVarLabels.tbl_df <-
+function (dat, str)
+{
+    vlat <- unlist(sapply(1:ncol(dat), function(i)attr(dat[[i]], "label")))
+    ind <- sort(union(grep(str, vlat, ignore.case = T), grep(str, names(dat), ignore.case = T)))
+    vldf <- data.frame(ind = ind, label = vlat[ind])
+    rownames(vldf) <- names(dat)[ind]
+    vldf
+}
 
+readDTA <- read_dta
 freqDist <- function(x){
   tab <- table(x)
   ntab <- names(tab)
@@ -579,6 +604,88 @@ unalike.iscss <- function () {
     tkgrid(buttonsFrame, sticky="w")
     dialogSuffix()
 }
+
+
+importSTATA.iscss <- function() {
+    initializeDialog(title=gettextRcmdr("Import STATA Data Set"))
+    dsname <- tclVar("Dataset")
+    dsnameFrame <- tkframe(top)
+    entryDsname <- ttkentry(dsnameFrame, width="20", textvariable=dsname)
+    onOK <- function(){
+        closeDialog()
+        setBusyCursor()
+        on.exit(setIdleCursor())
+        dsnameValue <- trim.blanks(tclvalue(dsname))
+        if (dsnameValue == ""){
+            errorCondition(recall=importSTATA,
+                           message=gettextRcmdr("You must enter the name of a data set."))
+            return()
+        }
+        if (!is.valid.name(dsnameValue)){
+            errorCondition(recall=importSTATA,
+                           message=paste('"', dsnameValue, '" ', gettextRcmdr("is not a valid name."), sep=""))
+            return()
+        }
+        if (is.element(dsnameValue, listDataSets())) {
+            if ("no" == tclvalue(checkReplace(dsnameValue, gettextRcmdr("Data set")))){
+                importSTATA.iscss()
+                return()
+            }
+        }
+        file <- tclvalue(tkgetOpenFile(
+            filetypes=gettextRcmdr('{"All Files" {"*"}} {"STATA datasets" {".dta" ".DTA"}}')))
+        if (file == "") {
+            tkfocus(CommanderWindow())
+            return()
+        }
+        command <- paste('readDTA("', file,'")', sep="")
+        logger(paste(dsnameValue, " <- ", command, sep=""))
+        result <- justDoIt(command)
+        if (class(result)[1] !=  "try-error"){
+            gassign(dsnameValue, result)
+            activeDataSet(dsnameValue)
+        }
+        tkfocus(CommanderWindow())
+    }
+    OKCancelHelp(helpSubject="read_dta")
+    tkgrid(labelRcmdr(dsnameFrame, text=gettextRcmdr("Enter name for data set:  ")), entryDsname, sticky="w")
+    tkgrid(dsnameFrame, columnspan=2, sticky="w")
+    tkgrid(buttonsFrame, columnspan="2", sticky="ew")
+    dialogSuffix(focus=entryDsname)
+}
+
+
+
+searchVarLabels.iscss <- function(){
+    dataSet <- activeDataSet()
+    initializeDialog(title=gettextRcmdr("Search Variable Labels"))
+    searchVariable <- tclVar(gettextRcmdr("<search string>"))
+    searchFrame <- tkframe(top)
+    searchEntry <- ttkentry(searchFrame, width="20", textvariable=searchVariable)
+    searchScroll <- ttkscrollbar(searchFrame, orient="horizontal",
+                                 command=function(...) tkxview(searchEntry, ...))
+    tkconfigure(searchEntry, xscrollcommand=function(...) tkset(searchScroll, ...))
+    onOK <- function(){
+        closeDialog()
+        searchstr1 <- tclvalue(searchVariable)
+        searchstr <- if (searchstr1 == gettextRcmdr("<search string>")) ""
+          else searchstr1
+        command <- paste("searchVarLabels(", ActiveDataSet(), ", '", searchstr, "')",
+                         sep="")
+#        logger(command)
+        doItAndPrint(command)
+        tkfocus(CommanderWindow())
+    }
+    OKCancelHelp(helpSubject="searchVarLabels")
+    tkgrid(labelRcmdr(searchFrame, text=gettextRcmdr("Search String")), sticky="w")
+    tkgrid(searchEntry, sticky="w")
+    tkgrid(searchScroll, sticky="ew")
+    tkgrid(searchFrame, sticky="w")
+    tkgrid(buttonsFrame, sticky="w")
+    dialogSuffix()
+}
+
+
 
 
 
