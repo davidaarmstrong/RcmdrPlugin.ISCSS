@@ -11,9 +11,15 @@
 \alias{unalike.iscss}
 \alias{ci.iscss}
 \alias{confidenceInterval}
+\alias{searchVarLabels.iscss}
 \alias{searchVarLabels}
 \alias{searchVarLabels.data.frame}
 \alias{searchVarLabels.tbl_df}
+\alias{inspect.iscss}
+\alias{inspect}
+\alias{inspect.tbl_df}
+\alias{inspect.data.frame}
+\alias{asFactor.iscss}
 \description{Internal RcmdrDemosPlugin objects.}
 \details{These are not to be called by the user.}
 \keyword{internal}

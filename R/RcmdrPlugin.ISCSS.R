@@ -26,8 +26,30 @@
     }
 }
 
+
+inspect <- function(data, x, ...)UseMethod("inspect")
+inspect.tbl_df <- function(data, x){
+  tmp <- data[[as.character(x)]]
+  var.lab <- attr(tmp, "label")
+  if(is.null(var.lab)){var.lab <- "No Label Found"}
+  val.labs <- attr(tmp, "labels")
+  if(is.null(val.labs)){val.labs <- sort(unique(tmp))}
+  tab <- cbind(freq = table(tmp), prop = round(table(tmp)/sum(table(tmp), na.rm=T), 3))
+  out <- list(variable_label = var.lab, value_labels=t(t(val.labs)), freq_dist = tab)
+  return(out)
+}
+inspect.data.frame <- function(data, x){
+  var.lab <- attr(data, "var.label")[which(names(data) == x)]
+  val.labs <- if(!is.null(levels(data[[x]]))){levels(data[[x]])}
+    else {sort(unique(data[[x]]))}
+  tab <- cbind(freq = table(data[[x]]), prop = round(table(data[[x]])/sum(table(data[[x]]), na.rm=T), 3))
+  out <- list(variable_label = var.lab, value_labels=t(t(val.labs)), freq_dist = tab)
+  return(out)
+}
+
+
 plotCIgroup <- function(form, data, horiz=FALSE,
-    arrowlen = 0, includeOverall=TRUE, distr=c("normal", "t"), conflevel = .95, ...){
+    arrowlen = 0, includeOverall=TRUE, distr=c("normal", "t"), conflevel = .95, las=2, ...){
     mf <- model.frame(form, data)
     resp <- mf[,1]
     fac <- mf[,2]
@@ -45,7 +67,7 @@ plotCIgroup <- function(form, data, horiz=FALSE,
         xl <- c(1-xd, ngroup + xd)
         plot(xl, yl, axes=F, type="n", xlab="", ...)
         points(1:ngroup, ag[,1], ...)
-        axis(1, at=1:ngroup, labels=rownames(ag))
+        axis(1, at=1:ngroup, labels=rownames(ag), las=las)
         axis(2)
         box()
         arrows(1:ngroup, ag[,2], 1:ngroup, ag[,3], code=3, length=arrowlen)
@@ -59,7 +81,7 @@ plotCIgroup <- function(form, data, horiz=FALSE,
         xl <- c(1-xd, ngroup + xd)
         plot(yl, xl, axes=F, type="n", ylab="", ...)
         points(ag[,1], 1:ngroup, ...)
-        axis(2, at=1:ngroup, labels=rownames(ag))
+        axis(2, at=1:ngroup, labels=rownames(ag), las=las)
         axis(1)
         box()
         arrows(ag[,2], 1:ngroup, ag[,3], 1:ngroup, code=3, length=arrowlen)
@@ -585,7 +607,7 @@ subsetDataSet.iscss <- function(){
 
 plotCIgroup.iscss <- function(){
     defaults <- list(initial.row=NULL, initial.column=NULL,initial.conflevel=95,
-      initial.ylab=gettextRcmdr("<auto>"), initial.distr="normal", initial.horizontal=0, initial.includeOverall = 1, initial.arrowlen=0)
+      initial.ylab=gettextRcmdr("<auto>"), initial.distr="normal", initial.horizontal=0, initial.includeOverall = 1, initial.arrowlen=0, initial.las=0)
     dialog.values <- getDialog("plotCIgroup.iscss", defaults)
     initializeDialog(title=gettextRcmdr("Plot CIs by Group"), use.tabs=FALSE)
     variablesFrame <- tkframe(top)
@@ -617,6 +639,8 @@ plotCIgroup.iscss <- function(){
       conflevel <- tclvalue(conflevelVariable)
       arrowlen <- tclvalue(arrowlenVariable)
       distr <- tclvalue(distrVariable)
+      las <- tclvalue(lasVariable)
+      las2 <- as.numeric(las)
       horizontal <- tclvalue(horizontalVariable)
       horizontal2 <- ifelse(horizontal == "0", FALSE, TRUE)
       includeOverall <- tclvalue(includeOverallVariable)
@@ -625,13 +649,13 @@ plotCIgroup.iscss <- function(){
       ylab2 <- if (ylab == gettextRcmdr("<auto>"))row
         else ylab
       putDialog("plotCIgroup.iscss", list(initial.row = row, intial.column = column,
-        initial.conflevel=conflevel, initial.ylab=ylab2, initial.distr=distr, initial.horizontal=horizontal, initial.includeOverall=includeOverall, initial.arrowlen=arrowlen))
+        initial.conflevel=conflevel, initial.ylab=ylab2, initial.distr=distr, initial.horizontal=horizontal, initial.includeOverall=includeOverall, initial.arrowlen=arrowlen, initial.las=las))
       closeDialog()
         if (length(row) == 0 | length(col) == 0) {
             errorCondition(recall = plotCIgroup.iscss, message = gettextRcmdr("You must select a quantitative variable and a grouping variable"))
             return()
         }
-        command <- paste("plotCIgroup(", row, "~", column, ", ", ActiveDataSet(), ", conflevel = ", as.numeric(conflevel)/100, ", horiz = ", horizontal2, ", includeOverall=", includeOverall2, ", arrowlen = ", as.numeric(arrowlen), ", distr = '", distr, "', ylab = '", ylab2, "')", sep="")
+        command <- paste("plotCIgroup(", row, "~", column, ", ", ActiveDataSet(), ", conflevel = ", as.numeric(conflevel)/100, ", horiz = ", horizontal2, ", includeOverall=", includeOverall2, ", arrowlen = ", as.numeric(arrowlen), ", distr = '", distr, "', ylab = '", ylab2, "', las = ", las2, ")", sep="")
         doItAndPrint(command)
         activateMenus()
         tkfocus(CommanderWindow())
@@ -646,6 +670,10 @@ plotCIgroup.iscss <- function(){
   checkBoxes(top, frame="optionsFrame", boxes=c("horizontal", "includeOverall"),
           initialValues=c(dialog.values$initial.horizontal, dialog.values$initial.includeOverall),
           labels=gettextRcmdr(c("Horizontal Bars", "Include Overall Mean CI")))
+	radioButtons(top, name = "las", buttons = c("parallel", "horizontal", "perpendicular", "vertical"), values = c(0,1,2,3),
+	             labels = gettextRcmdr(c("Always Parallel", "Always Horizontal", "Always Perpendicular", "Always Vertical")),
+               title = gettextRcmdr("Label Orientation"),
+	             initialValue = dialog.values$initial.las)
   tkgrid(getFrame(rowBox), labelRcmdr(variablesFrame, text="    "), getFrame(columnBox), sticky="nw")
   tkgrid(variablesFrame, sticky="w")
   tkgrid(optionsFrame, sticky="w")
@@ -657,6 +685,7 @@ plotCIgroup.iscss <- function(){
   tkgrid(arrowlenFrame, sticky="w")
   tkgrid(labelRcmdr(rightFrame, text = ""), sticky = "w")
   tkgrid(distrFrame, rightFrame, sticky = "w")
+  tkgrid(lasFrame, rightFrame, sticky = "w")
   tkgrid(optionsFrame2, sticky="w")
   tkgrid(parFrame, sticky = "nw")
   tkgrid(buttonsFrame, sticky="w")
@@ -728,6 +757,68 @@ unalike.iscss <- function () {
     tkgrid(buttonsFrame, sticky="w")
     dialogSuffix()
 }
+
+inspect.iscss <- function () {
+    defaults <- list (initial.variable = NULL)
+    dialog.values <- getDialog ("inspect.iscss", defaults)
+    initializeDialog(title = gettextRcmdr("Inspect Variable"), use.tabs=FALSE)
+    variableBox <- variableListBox(top, selectmode="single", title =
+      gettextRcmdr("Variable (pick one)"), initialSelection = NULL)
+    onOK <- function() {
+        variable <- getSelection(variableBox)
+        putDialog ("inspect.iscss", list(initial.variable = variable))
+        closeDialog()
+        if (length(variable) == 0) {
+            errorCondition(recall = inspect.iscss, message = gettextRcmdr("You must select a variable"))
+            return()
+        }
+        command <- paste0("inspect(", ActiveDataSet(),  ", '", variable, "')")
+        doItAndPrint(command)
+        activateMenus()
+        tkfocus(CommanderWindow())
+    }
+    OKCancelHelp(helpSubject = "inspect", reset = "inspect.iscss", apply = "inspect.iscss")
+    tkgrid(getFrame(variableBox), sticky="nw")
+    tkgrid(buttonsFrame, sticky="w")
+    dialogSuffix()
+}
+
+asFactor.iscss <- function () {
+    defaults <- list (initial.variable = NULL, initial.name = "variable")
+    dialog.values <- getDialog ("asFactor.iscss", defaults)
+    initializeDialog(title = gettextRcmdr("Change Tibble Variable to Factor"), use.tabs=FALSE)
+    variableBox <- variableListBox(top, selectmode="single", title =
+      gettextRcmdr("Variable (pick one)"), initialSelection = NULL)
+    variablesFrame <- tkframe(top)
+    newVariableName <- tclVar(dialog.values$initial.name)
+    newVariable <- ttkentry(variablesFrame, width = "20", textvariable = newVariableName)
+
+    onOK <- function() {
+        variable <- getSelection(variableBox)
+        dataSet <- ActiveDataSet()
+        closeDialog()
+        if (length(variable) == 0) {
+            errorCondition(recall = asFactor.iscss, message = gettextRcmdr("You must select a variable"))
+            return()
+        }
+        name <- trim.blanks(tclvalue(newVariableName))
+        putDialog ("asFactor.iscss", list(initial.variable = variable, initial.name=name))
+        command <- paste0(dataSet, "[['", name, "']] <- haven:::as_factor.labelled(", dataSet, "[['", variable, "']])")
+        result <- doItAndPrint(command)
+        if (class(result)[1] != "try-error") activeDataSet(ActiveDataSet(), flushModel = FALSE,
+            flushDialogMemory = FALSE)
+        activateMenus()
+        tkfocus(CommanderWindow())
+    }
+    OKCancelHelp(helpSubject = "as_factor", reset = "asFactor.iscss", apply = "asFactor.iscss")
+    tkgrid(getFrame(variableBox), sticky="nw")
+    tkgrid(labelRcmdr(variablesFrame, text = ""))
+    tkgrid(labelRcmdr(variablesFrame, text = gettextRcmdr("New variable name: ")), newVariable, sticky = "w")
+    tkgrid(variablesFrame, sticky = "w")
+    tkgrid(buttonsFrame, sticky="w")
+    dialogSuffix()
+}
+
 
 
 importSTATA.iscss <- function() {

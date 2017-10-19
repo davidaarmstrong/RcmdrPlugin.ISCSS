@@ -4,15 +4,16 @@
 # last modified: 25 September, 2017 by Dave Armstrong
 
 #   type    menu/item      operation/parent  label                              command/menu                activation    install?
-remove  barGraph    ""		""										""							""						""
 menu    ISCSSMenu       topMenu         ""                                      ""                          ""                      ""
 item    topMenu     cascade             "ISCSS"               ISCSSMenu             ""            ""
 menu    dataMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
 item    dataMenu.iscss      command          "Subset Data Set (including random sampling) ..."                                  subsetDataSet.iscss                   ""          ""
 item    dataMenu.iscss      command          "Search Variable Labels ..."                                  searchVarLabels.iscss                   ""          ""
 item    dataMenu.iscss      command          "Import Stata Dataset (haven) ..."                                  importSTATA.iscss                   ""          ""
+item    dataMenu.iscss      command          "Change Labelled Variable to Factor"                                  asFactor.iscss                   ""          ""
 item    ISCSSMenu        cascade         "Data"                                          dataMenu.iscss                    ""          ""
 menu    statsMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
+item    statsMenu.iscss       command         "Inspect a Variable..."              inspect.iscss         ""                      ""
 item    statsMenu.iscss       command         "Frequency Distribution..."              freqDist.iscss         ""                      ""
 item    statsMenu.iscss      command          "Numeric Summaries (all variables) ..."                                  numSumAll.iscss                   ""          ""
 item    statsMenu.iscss       command         "Unalikeability..."              unalike.iscss         ""                      ""
