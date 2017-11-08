@@ -142,7 +142,9 @@ simtable <- function(x,y, n=1000, stat=NULL){
 simrho <- function(x,y, n=1000){
   rho0 <- cor(x,y, use="pair", method="spearman")
   simrho <- sapply(1:n, function(i)cor(x, sample(y, length(y), replace=F), use="pair", method="spearman"))
-  return(list(rho0 = rho0, simrho = simrho, pv = mean(abs(simrho) > abs(rho0))))
+  pv <- {if(rho0 >= 0)mean(simrho > rho0)
+      else mean(simrho < rho0)}
+  return(list(rho0 = rho0, simrho = simrho, pv = pv))
 }
 
 makeStats <- function(x,y, chisq=FALSE, phi=FALSE, cramersV=FALSE, lambda=FALSE,
@@ -182,21 +184,24 @@ if(lambda){
 if(gamma){
   stat0 <- do.call('ord.gamma', list(x=tab))
   stats <- sapply(tabs, function(x)lambda(x))
-  pv <- mean(stats > stat0)
-  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  pv <- {if(stat0 >= 0)mean(stats > stat0)
+      else mean(stats < stat0)}
+    allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
   rownames(allStats)[nrow(allStats)] <- "Kruskal-Goodman Gamma"
 }
 if(d){
   stat0 <- do.call('ord.somers.d', list(x=tab))$sd.symmetric
   stats <- sapply(tabs, function(x)ord.somers.d(x)$sd.symmetric)
-  pv <- mean(stats > stat0)
+  pv <- {if(stat0 >= 0)mean(stats > stat0)
+      else mean(stats < stat0)}
   allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
   rownames(allStats)[nrow(allStats)] <- "Somers D"
 }
 if(taub){
   stat0 <- do.call('tau.b', list(x=tab))
   stats <- sapply(tabs, function(x)tau.b(x))
-  pv <- mean(stats > stat0)
+  pv <- {if(stat0 >= 0)mean(stats > stat0)
+      else mean(stats < stat0)}
   allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
   rownames(allStats)[nrow(allStats)] <- "Tau-b"
 }
