@@ -112,10 +112,11 @@ lambda <- function(x){
   wgmax <- which.max(rowSums(x))
   nullcc <- rowSums(x)[wgmax]
   nullerr <- sum(rowSums(x)[-wgmax])
-  corrpred <- sum(x[cbind(wmax, 1:ncol(x))])
-  errpred <- sum(c(x))-corrpred
-  1-(errpred/nullerr)
-
+  corrpred <- x[cbind(wmax, 1:ncol(x))]
+  errpred <- colSums(x) - corrpred
+  E1 <- nullerr
+  E2 <- sum(errpred)
+  (E1-E2)/E1
 }
 
 phi <- function(x){
