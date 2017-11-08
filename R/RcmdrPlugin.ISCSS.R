@@ -47,6 +47,189 @@ inspect.data.frame <- function(data, x){
   return(out)
 }
 
+## concordant, discordant, tau.b, tau.c, ord.somers.d, ord.gamma come from the ryouready package
+## Phi and V come from the DescTools package
+concordant <- function (x) {
+    x <- matrix(as.numeric(x), dim(x))
+    mat.lr <- function(r, c) {
+        lr <- x[(r.x > r) & (c.x > c)]
+        sum(lr)
+    }
+    r.x <- row(x)
+    c.x <- col(x)
+    sum(x * mapply(mat.lr, r = r.x, c = c.x))
+}
+discordant <- function(x){
+    x <- matrix(as.numeric(x), dim(x))
+    mat.ll <- function(r, c) {
+        ll <- x[(r.x > r) & (c.x < c)]
+        sum(ll)
+    }
+    r.x <- row(x)
+    c.x <- col(x)
+    sum(x * mapply(mat.ll, r = r.x, c = c.x))
+}
+
+tau.b <- function (x) {
+    x <- matrix(as.numeric(x), dim(x))
+    c <- concordant(x)
+    d <- discordant(x)
+    n <- sum(x)
+    SumR <- rowSums(x)
+    SumC <- colSums(x)
+    tau.b <- (2 * (c - d))/sqrt(((n^2) - (sum(SumR^2))) * ((n^2) -
+        (sum(SumC^2))))
+    tau.b
+}
+
+ord.gamma <- function(x){
+    x <- matrix(as.numeric(x), dim(x))
+    c <- concordant(x)
+    d <- discordant(x)
+    gamma <- (c - d)/(c + d)
+    class(gamma) <- "ord.gamma"
+    gamma
+}
+
+ord.somers.d <- function(x){
+    x <- matrix(as.numeric(x), dim(x))
+    c <- concordant(x)
+    d <- discordant(x)
+    n <- sum(x)
+    SumR <- rowSums(x)
+    SumC <- colSums(x)
+    sd.cr <- (2 * (c - d))/((n^2) - (sum(SumR^2)))
+    sd.rc <- (2 * (c - d))/((n^2) - (sum(SumC^2)))
+    sd.s <- (2 * (c - d))/((n^2) - (((sum(SumR^2)) + (sum(SumC^2)))/2))
+    res <- list(sd.cr, sd.rc, sd.s)
+    names(res) <- c("sd.cr", "sd.rc", "sd.symmetric")
+    class(res) <- "ord.somersd"
+    res
+}
+
+lambda <- function(x){
+  wmax <- apply(x, 2, which.max)
+  wgmax <- which.max(rowSums(x))
+  nullcc <- rowSums(x)[wgmax]
+  nullerr <- sum(rowSums(x)[-wgmax])
+  corrpred <- sum(x[cbind(wmax, 1:ncol(x))])
+  errpred <- sum(c(x))-corrpred
+  1-(errpred/nullerr)
+
+}
+
+phi <- function(x){
+   as.numeric(sqrt(suppressWarnings(chisq.test(x, correct = FALSE)$statistic)/sum(x)))
+}
+
+V <- function(x){
+  chi2 <- chisq.test(x)$statistic
+  sqrt(chi2/(sum(c(x)) * (min(nrow(x), ncol(x)) -1)))
+}
+
+simtable <- function(x,y, n=1000, stat=NULL){
+  out <- lapply(1:n, function(i)table(x, sample(y, length(y), replace=F)))
+  if(is.null(stat)){
+    return(out)
+  }
+  else{
+    sapply(out, stat)
+  }
+
+}
+
+simrho <- function(x,y, n=1000){
+  rho0 <- cor(x,y, use="pair", method="spearman")
+  simrho <- sapply(1:n, function(i)cor(x, sample(y, length(y), replace=F), use="pair", method="spearman"))
+  return(list(rho0 = rho0, simrho = simrho, pv = mean(abs(simrho) > abs(rho0))))
+}
+
+makeStats <- function(x,y, chisq=FALSE, phi=FALSE, cramersV=FALSE, lambda=FALSE,
+   gamma=FALSE, d=FALSE, taub=FALSE, rho=FALSE, n=1000){
+
+  tabs <- simtable(x,y,n)
+  tab <- table(x,y)
+allStats <- NULL
+if(chisq){
+  stat0 <- do.call('chisq.test', list(x=tab))$statistic
+  stats <- sapply(tabs, function(x)chisq.test(x)$statistic)
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Chi-squared"
+}
+if(phi){
+  stat0 <- do.call('phi', list(x=tab))
+  stats <- sapply(tabs, function(x)phi(x))
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Phi"
+}
+if(cramersV){
+  stat0 <- do.call('V', list(x=tab))
+  stats <- sapply(tabs, function(x)V(x))
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Cramers V"
+}
+if(lambda){
+  stat0 <- do.call('lambda', list(x=tab))
+  stats <- sapply(tabs, function(x)lambda(x))
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Lambda"
+}
+if(gamma){
+  stat0 <- do.call('ord.gamma', list(x=tab))
+  stats <- sapply(tabs, function(x)lambda(x))
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Kruskal-Goodman Gamma"
+}
+if(d){
+  stat0 <- do.call('ord.somers.d', list(x=tab))$sd.symmetric
+  stats <- sapply(tabs, function(x)ord.somers.d(x)$sd.symmetric)
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Somers D"
+}
+if(taub){
+  stat0 <- do.call('tau.b', list(x=tab))
+  stats <- sapply(tabs, function(x)tau.b(x))
+  pv <- mean(stats > stat0)
+  allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Tau-b"
+}
+if(rho){
+  x2 <-as.numeric(x)
+  y2 <- as.numeric(y)
+  r <- simrho(x2,y2,n)
+  allStats <- rbind(allStats, c(r$rho0, r$pv))[,,drop=F]
+  rownames(allStats)[nrow(allStats)] <- "Spearmans Rho"
+}
+if(!is.null(allStats)){
+  colnames(allStats) <- c("statistic", "p-value")
+  w <- which(allStats[,1] == 0 & allStats[,2] == 0)
+  if(length(w) > 0){
+    allStats[w,2] <- 1.000
+  }
+  allStats <- round(allStats, 4)
+}
+return(allStats)
+}
+
+plotStdRes <- function(x, col=RColorBrewer::brewer.pal(10, "RdBu")){
+  x2 <- chisq.test(x)
+  res <- x2$stdres
+  minres <- ifelse(min(c(res)) > -3.5, -3.5, min(c(res)))
+  maxres <- ifelse(max(c(res)) <3.5, 3.5, max(c(res)))
+  if(maxres > abs(minres)){
+    minres <- -maxres
+  }
+  if(maxres < abs(minres)){
+    maxres <- -minres
+  }
+  lattice::levelplot(res, col.regions=col, cuts=10, at=c(minres, -3, -2, -1, 0, 1, 2, 3, maxres))
+}
 
 plotCIgroup <- function(form, data, horiz=FALSE,
     arrowlen = 0, includeOverall=TRUE, distr=c("normal", "t"), conflevel = .95, las=2, ...){
@@ -903,129 +1086,87 @@ searchVarLabels.iscss <- function(){
 
 
 
-
-
-
-# twoWayTable.iscss <- function(){
-#     Library("abind")
-#     defaults <- list(initial.row=NULL, initial.column=NULL,
-#         initial.percents="none", initial.chisq=1, initial.chisqComp=0, initial.expected=0,
-#         initial.fisher=0, initial.gamma=0, initial.taub=0, initial.confidenceLevel = NULL,
-#         initial.subset=gettextRcmdr("<all valid cases>"), initial.tab=0)
-#     dialog.values <- getDialog("twoWayTable.iscss", defaults)
-#     initializeDialog(title=gettextRcmdr("Two-Way Table"), use.tabs=TRUE)
-#     variablesFrame <- tkframe(dataTab)
-#     .factors <- Factors()
-#     rowBox <- variableListBox(variablesFrame, .factors, title=gettextRcmdr("Row variable (pick one)"),
-#         initialSelection=varPosn(dialog.values$initial.row, "factor"))
-#     columnBox <- variableListBox(variablesFrame, .factors, title=gettextRcmdr("Column variable (pick one)"),
-#         initialSelection=varPosn(dialog.values$initial.column, "factor"))
-#     subsetBox(dataTab, subset.expression=dialog.values$initial.subset)
-#     onOK <- function(){
-#         tab <- if (as.character(tkselect(notebook)) == dataTab$ID) 0 else 1
-#         row <- getSelection(rowBox)
-#         column <- getSelection(columnBox)
-#         percents <- as.character(tclvalue(percentsVariable))
-#         chisq <- tclvalue(chisqTestVariable)
-#         chisqComp <- tclvalue(chisqComponentsVariable)
-#         expected <- tclvalue(expFreqVariable)
-#         fisher <- tclvalue(fisherTestVariable)
-#         gamma <- tclvalue(gammaVariable)
-#         level <- tclvalue(confidenceLevel)
-#         taub <- tclvalue(taubVariable)
-#         initial.subset <- subset <- tclvalue(subsetVariable)
-#         subset <- if (trim.blanks(subset) == gettextRcmdr("<all valid cases>")) ""
-#         else paste(", subset=", subset, sep="")
-#         conflevel <- tclvalue(conflevelVariable)
-#         putDialog("twoWayTable.iscss", list(
-#             initial.row=row,
-#             initial.column=column,
-#             initial.percents=percents, initial.chisq=chisq, initial.chisqComp=chisqComp,
-#             initial.expected=expected, initial.fisher=fisher, initial.gamma=gamma, initial.taub=taub, initial.subset=initial.subset,
-#             initial.tab=tab,  initial.confidenceLevel = level))
-#         if (length(row) == 0 || length(column) == 0){
-#             errorCondition(recall=twoWayTable.iscss, message=gettextRcmdr("You must select two variables."))
-#             return()
-#         }
-#         if (row == column) {
-#             errorCondition(recall=twoWayTable.iscss, message=gettextRcmdr("Row and column variables are the same."))
-#             return()
-#         }
-#         closeDialog()
-#         command <- paste("local({\n  .Table <- xtabs(~", row, "+", column, ", data=", ActiveDataSet(),
-#             subset, ')\n  cat("\\nFrequency table:\\n")\n  print(.Table)', sep="")
-#         command.2 <- paste("local({\n  .warn <- options(warn=-1)\n  .Table <- xtabs(~", row, "+", column, ", data=", ActiveDataSet(),
-#                            subset, ")", sep="")
-#         if (percents == "row")
-#           command <- paste(command, '\n  cat("\\nRow percentages:\\n")\n  print(rowPercents(.Table))',
-#                            sep="")
-#         else if (percents == "column")
-#           command <-  paste(command, '\n  cat("\\nColumn percentages:\\n")\n  print(colPercents(.Table))',
-#                             sep="")
-#         else if (percents == "total")
-#           command <- paste(command, '\n  cat("\\nTotal percentages:\\n")\n  print(totPercents(.Table))',
-#                 sep="")
-#         if (chisq == 1) {
-#             command <- paste(command, "\n  .Test <- chisq.test(.Table, correct=FALSE)", sep="")
-#             command.2 <- paste(command.2, "\n  .Test <- chisq.test(.Table, correct=FALSE)", sep="")
-#             command <- paste(command, "\n  print(.Test)", sep="")
-#             if (expected == 1)
-#                 command <- paste(command, '\n  cat("\\nExpected counts:\\n")\n  print(.Test$expected)', sep="")
-#             if (chisqComp == 1) {
-#                 command <- paste(command, '\n  cat("\\nChi-square components:\\n")\n  print(round(.Test$residuals^2, 2))', sep="")
-#             }
-#         }
-#         if (fisher == 1) command <- paste(command, "\n  print(fisher.test(.Table))")
-#         if (gamma == 1){
-#           if(is.null(conflevel))command <- paste(command, "\n.TestG <- GKGamma(.Table)", sep="")
-#           else command <- paste(command, "\n.TestG <- GKGamma(.Table, conf.level = ", conflevel, ")", sep="")
-#           command <- paste(command, "\nprint(.TestG)", sep="")
-#         }
-#         if(taub == 1){
-#           command <- paste(command, "\n.TestK <- with(", ActiveDataSet(), ", cor(as.numeric(", row, "), as.numeric(", column, "), method='kendall', use='pair'))", sep="")
-#           command <- paste(command, "\nclass(.TestK) <- 'ktb'", sep="")
-#           command <- paste(command, "\nprint(.TestK)", sep="")
-#         }
-#         command <- paste(command, "\n})", sep="")
-#         doItAndPrint(command)
-#         if (chisq == 1){
-#           command.2 <- paste(command.2, "\nputRcmdr('.expected.counts', .Test$expected)\n  options(.warn)\n})")
-#           justDoIt(command.2)
-#           warnText <- NULL
-#           expected <- getRcmdr(".expected.counts")
-#           if (0 < (nlt1 <- sum(expected < 1))) warnText <- paste(nlt1,
-#                                                                        gettextRcmdr("expected frequencies are less than 1"))
-#           if (0 < (nlt5 <- sum(expected < 5))) warnText <- paste(warnText, "\n", nlt5,
-#                                                                        gettextRcmdr(" expected frequencies are less than 5"), sep="")
-#           if (!is.null(warnText)) Message(message=warnText,
-#                                           type="warning")
-#         }
-#         tkfocus(CommanderWindow())
-#     }
-#     OKCancelHelp(helpSubject="xtabs", reset="twoWayTable.iscss", apply="twoWayTable.iscss")
-#     radioButtons(optionsTab, name="percents",
-#         buttons=c("rowPercents", "columnPercents", "totalPercents", "nonePercents"),
-#         values=c("row", "column", "total", "none"), initialValue=dialog.values$initial.percents,
-#         labels=gettextRcmdr(c("Row percentages", "Column percentages", "Percentages of total", "No percentages")),
-#         title=gettextRcmdr("Compute Percentages"))
-#     checkBoxes(optionsTab, frame="testsFrame", boxes=c("chisqTest", "chisqComponents", "expFreq", "fisherTest", "taub", "gamma"),
-#         initialValues=c(dialog.values$initial.chisq, dialog.values$initial.chisqComp,
-#             dialog.values$initial.expected, dialog.values$initial.fisher,
-#             dialog.values$initial.taub, dialog.values$initial.gamma),
-#         labels=gettextRcmdr(c("Chi-square test of independence", "Components of chi-square statistic",
-#             "Print expected frequencies", "Fisher's exact test", "Kendall's Tau-b", "Kruskal's Gamma")))
-#     confidenceFrame <- tkframe(optionsFrame)
-#     confidenceLevel <- tclVar(dialog.values$initial.confidenceLevel)
-#     confidenceField <- ttkentry(confidenceFrame, width = "6",
-#                                 textvariable = confidenceLevel)
-#
-#     tkgrid(getFrame(rowBox), labelRcmdr(variablesFrame, text="    "), getFrame(columnBox), sticky="nw")
-#     tkgrid(variablesFrame, sticky="w")
-#     tkgrid(percentsFrame, sticky="w")
-#     tkgrid(labelRcmdr(optionsTab, text=gettextRcmdr("Hypothesis Tests"), fg=getRcmdr("title.color"), font="RcmdrTitleFont"), sticky="w")
-#     tkgrid(testsFrame, sticky="w")
-#     tkgrid(labelRcmdr(confidenceFrame, text = gettextRcmdr("Gamma Confidence Level"), sticky = "w"))
-#     tkgrid(confidenceField, sticky = "w")
-#     tkgrid(subsetFrame, sticky="w")
-#     dialogSuffix(use.tabs=TRUE, grid.buttons=TRUE, tab.names=c("Data", "Statistics"))
-# }
+twoWayTable.iscss <- function(){
+    Library("abind")
+    defaults <- list(initial.row=NULL, initial.column=NULL,
+        initial.chisq=1, initial.chisqComp=0, initial.expected=0,
+        initial.tab=0, initial.colpct = 1, initial.phi=0,
+        initial.cramersV = 0, initial.lambda = 0, initial.gamma = 0, initial.d = 0,
+        initial.taub = 0, initial.rho = 0, initial.plotStdRes = 0)
+    dialog.values <- getDialog("twoWayTable.iscss", defaults)
+    initializeDialog(title=gettextRcmdr("Two-Way Table"), use.tabs=TRUE)
+    variablesFrame <- tkframe(dataTab)
+    .factors <- Factors()
+    rowBox <- variableListBox(variablesFrame, .factors, title=gettextRcmdr("Row variable (pick one)"),
+        initialSelection=varPosn(dialog.values$initial.row, "factor"))
+    columnBox <- variableListBox(variablesFrame, .factors, title=gettextRcmdr("Column variable (pick one)"),
+        initialSelection=varPosn(dialog.values$initial.column, "factor"))
+    onOK <- function(){
+        tab <- if (as.character(tkselect(notebook)) == dataTab$ID) 0 else 1
+        row <- getSelection(rowBox)
+        column <- getSelection(columnBox)
+        chisqComp <- tclvalue(chisqCompVariable)
+        expected <- tclvalue(expFreqVariable)
+        colpct <- tclvalue(colpctVariable)
+        chisq <- tclvalue(chisqTestVariable)
+        phi <- tclvalue(phiTestVariable)
+        cramersV <- tclvalue(cramersVTestVariable)
+        lambda <- tclvalue(lambdaTestVariable)
+        gamma <- tclvalue(gammaTestVariable)
+        d <- tclvalue(dTestVariable)
+        taub <- tclvalue(taubTestVariable)
+        rho <- tclvalue(rhoTestVariable)
+        plotStdRes <- tclvalue(plotStdResVariable)
+        putDialog("twoWayTable.iscss", list(
+            initial.row=row,
+            initial.column=column, initial.colpct=colpct,
+            initial.chisq=chisq, initial.chisqComp=chisqComp,
+            initial.expected=expected, initial.tab=tab,
+            initial.phi = phi, initial.cramersV = cramersV, initial.lambda=lambda,
+            initial.gamma = gamma, initial.d = d, initial.taub=taub,
+            initial.rho = rho, initial.plotStdRes = plotStdRes))
+        if (length(row) == 0 || length(column) == 0){
+            errorCondition(recall=twoWayTable.iscss, message=gettextRcmdr("You must select two variables."))
+            return()
+        }
+        if (row == column) {
+            errorCondition(recall=twoWayTable.iscss, message=gettextRcmdr("Row and column variables are the same."))
+            return()
+        }
+        closeDialog()
+        command <- paste0("local({.out <- with(", ActiveDataSet(), ", gmodels::CrossTable(", row, ", ", column, ", prop.r = FALSE, prop.t=FALSE, sresid=TRUE, prop.c=", as.logical(as.numeric(colpct)), ", expected = ", as.logical(as.numeric(expected)), ", prop.chisq = ", as.logical(as.numeric(chisqComp)), ", chisq=F))\n")
+        if(any(c(chisq, phi, cramersV, lambda, gamma, d, taub, rho) == 1)){
+        command.2 <- paste0(".allStats <- with(", ActiveDataSet(), ", makeStats(",row, ", ", column, ", chisq=", as.logical(as.numeric(chisq)),
+        ", phi = ", as.logical(as.numeric(phi)), ", cramersV = ", as.logical(as.numeric(cramersV)), ", lambda = ", as.logical(as.numeric(lambda)), ", gamma = ", as.logical(as.numeric(gamma)), ", d = ", as.logical(as.numeric(d)), ", taub = ", as.logical(as.numeric(taub)), ", rho = ", as.logical(as.numeric(rho)),
+         ", 2500))\nprint(.allStats)")
+         command <- paste0(command, "\n", command.2)
+        }
+        if(plotStdRes == 1){
+            command <- paste(command, "\nplotStdRes(.out$t)\n")
+        }
+        command <- paste(command, "\n})", sep="")
+        doItAndPrint(command)
+        tkfocus(CommanderWindow())
+    }
+    OKCancelHelp(helpSubject="xtabs", reset="twoWayTable.iscss", apply="twoWayTable.iscss")
+    checkBoxes(optionsTab, frame="percentsFrame",
+        boxes=c("colpct", "expFreq", "chisqComp"),
+        initialValue=c(dialog.values$initial.colpct, dialog.values$initial.expected, dialog.values$initial.chisqComp),
+        labels=gettextRcmdr(c("Column percentages", "Expected Counts", "Chi-Square Contribution")),
+        title=gettextRcmdr("Cell Entries"))
+    checkBoxes(optionsTab, frame="testsFrame",
+        boxes=c("chisqTest", "phiTest", "cramersVTest", "lambdaTest", "gammaTest", "dTest", "taubTest", "rhoTest"),
+        initialValues=c(dialog.values$initial.chisq,  dialog.values$initial.phi,
+            dialog.values$initial.cramersV, dialog.values$initial.lambda, dialog.values$initial.gamma, dialog.values$initial.d, dialog.values$initial.taub, dialog.values$initial.rho),
+        labels=gettextRcmdr(c("Chi-square test of independence", "Phi", "Cramer's V", "Lambda", "Kruskal's Gamma", "Somer's D", "Kendall's Tau-b", "Spearman's Rho")))
+    checkBoxes(optionsTab, frame="sdresFrame", boxes="plotStdRes", initialValues=dialog.values$initial.plotStdRes,
+        labels=gettextRcmdr("Plot Standardized Residuals"))
+    tkgrid(getFrame(rowBox), labelRcmdr(variablesFrame, text="    "), getFrame(columnBox), sticky="nw")
+    tkgrid(variablesFrame, sticky="w")
+    tkgrid(percentsFrame, sticky="w")
+    tkgrid(labelRcmdr(optionsTab, text=gettextRcmdr("Hypothesis Tests"), fg=getRcmdr("title.color"), font="RcmdrTitleFont"), sticky="w")
+    tkgrid(testsFrame, sticky="w")
+    tkgrid(labelRcmdr(optionsTab, text=gettextRcmdr("Plot Residuals"), fg=getRcmdr("title.color"), font="RcmdrTitleFont"), sticky="w")
+    tkgrid(sdresFrame, sticky="w")
+    dialogSuffix(use.tabs=TRUE, grid.buttons=TRUE, tab.names=c("Data", "Statistics"))
+}

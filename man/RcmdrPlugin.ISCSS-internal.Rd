@@ -20,6 +20,19 @@
 \alias{inspect.tbl_df}
 \alias{inspect.data.frame}
 \alias{asFactor.iscss}
+\alias{concordant}
+\alias{discordant}
+\alias{phi}
+\alias{lambda}
+\alias{ord.gamma}
+\alias{ord.somers.d}
+\alias{tau.b}
+\alias{V}
+\alias{simtable}
+\alias{simrho}
+\alias{makeStats}
+\alias{plotStdRes}
+\alias{twoWayTable.iscss}
 \description{Internal RcmdrDemosPlugin objects.}
 \details{These are not to be called by the user.}
 \keyword{internal}
