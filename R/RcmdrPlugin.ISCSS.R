@@ -232,7 +232,7 @@ if(!is.null(allStats)){
 return(allStats)
 }
 
-plotStdRes <- function(x, col=RColorBrewer::brewer.pal(10, "RdBu")){
+plotStdRes <- function(x, col=RColorBrewer::brewer.pal(10, "RdBu"), ...){
   x2 <- chisq.test(x)
   res <- x2$stdres
   minres <- ifelse(min(c(res)) > -3.5, -3.5, min(c(res)))
@@ -243,7 +243,7 @@ plotStdRes <- function(x, col=RColorBrewer::brewer.pal(10, "RdBu")){
   if(maxres < abs(minres)){
     maxres <- -minres
   }
-  lattice::levelplot(res, col.regions=col, cuts=10, at=c(minres, -3, -2, -1, 0, 1, 2, 3, maxres))
+  lattice::levelplot(res, col.regions=col, cuts=10, at=c(minres, -3, -2, -1, 0, 1, 2, 3, maxres), ...)
 }
 
 plotCIgroup <- function(form, data, horiz=FALSE,
