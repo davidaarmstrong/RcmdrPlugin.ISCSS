@@ -120,12 +120,21 @@ lambda <- function(x){
 }
 
 phi <- function(x){
-   as.numeric(sqrt(suppressWarnings(chisq.test(x, correct = FALSE)$statistic)/sum(x)))
+    num <- prod(diag(x))- (x[2,1]*x[1,2])
+    denom <- sqrt(prod(c(colSums(x), rowSums(x))))
+    num/denom
 }
 
 V <- function(x){
+  if(all(dim(x) == 2)){
+    num <- prod(diag(x))- (x[2,1]*x[1,2])
+    denom <- sqrt(prod(c(colSums(x), rowSums(x))))
+    num/denom
+  }
+  else{
   chi2 <- chisq.test(x, correct=FALSE)$statistic
   sqrt(chi2/(sum(c(x)) * (min(nrow(x), ncol(x)) -1)))
+  }
 }
 
 simtable <- function(x,y, n=1000, stat=NULL){
