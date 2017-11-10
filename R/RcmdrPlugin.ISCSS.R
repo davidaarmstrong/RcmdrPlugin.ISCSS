@@ -124,7 +124,7 @@ phi <- function(x){
 }
 
 V <- function(x){
-  chi2 <- chisq.test(x)$statistic
+  chi2 <- chisq.test(x, correct=FALSE)$statistic
   sqrt(chi2/(sum(c(x)) * (min(nrow(x), ncol(x)) -1)))
 }
 
@@ -154,8 +154,8 @@ makeStats <- function(x,y, chisq=FALSE, phi=FALSE, cramersV=FALSE, lambda=FALSE,
   tab <- table(x,y)
 allStats <- NULL
 if(chisq){
-  stat0 <- do.call('chisq.test', list(x=tab))$statistic
-  stats <- sapply(tabs, function(x)chisq.test(x)$statistic)
+  stat0 <- do.call('chisq.test', list(x=tab, correct=FALSE))$statistic
+  stats <- sapply(tabs, function(x)chisq.test(x, correct=FALSE)$statistic)
   pv <- mean(stats > stat0)
   allStats <- rbind(allStats, c(stat0, pv))[,,drop=F]
   rownames(allStats)[nrow(allStats)] <- "Chi-squared"
