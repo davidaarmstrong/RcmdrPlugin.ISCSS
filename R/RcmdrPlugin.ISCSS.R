@@ -398,6 +398,9 @@ pwCorrMat <- function(X, method=c("z", "t", "sim"), ...){
 }
 
 print.pwc <- function(x, ...){
+cat("All Correlations\n")
+ print(noquote(round(x$r,3)))
+cat("\nOnly Significant Correlations\n")
  print(noquote(x$rSig))
 }
 
