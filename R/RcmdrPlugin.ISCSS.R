@@ -345,6 +345,63 @@ unalike <- function(x){
   mean(c(o[lower.tri(o)]), na.rm=T)
 }
 
+sig.cor <- function(x,y, method=c("z", "t", "sim"), n.sim = 1000, two.sided=TRUE, ...){
+meth <- match.arg(method)
+r <- cor(x,y, ...)
+n <- sum(!is.na(x)*!is.na(y))
+if(meth == "z"){
+  z <- .5*log((1+r)/(1-r))
+  sez <- 1/sqrt(n-3)
+  pv <- (2^two.sided)*pnorm(abs(z), 0, sez, lower.tail=F)
+}
+if(meth == "t"){
+  tstat <- r*sqrt((n-2)/(1-r^2))
+  pv <- (2^two.sided)*pt(abs(tstat), n-2, lower.tail=F)
+}
+if(meth == "sim"){
+  xmat <- sapply(1:n.sim, function(z)sample(x, length(x), replace=F))
+  r0 <- c(cor(y, xmat))
+  pv <- {if(two.sided){
+    mean(r0 < (-abs(r))) + mean(r0 > abs(r))
+  }
+  else{
+    if(r > 0){
+      mean(r > r0)
+    }
+    else{
+      mean(r < r0)
+    }
+  }}
+}
+return(list(r=r, p = pv))
+}
+
+
+pwCorrMat <- function(X, method=c("z", "t", "sim"), ...){
+  meth <- match.arg(method)
+  out <- p.out <- diag(ncol(X))
+  for(i in 1:(ncol(X)-1)){
+    for(j in i:ncol(X)){
+      f <- sig.cor(X[,i], X[,j], method=meth, ...)
+      out[i,j] <- out[j,i] <- f$r
+      p.out[i,j] <- p.out[j,i] <- f$p
+    }
+  }
+  outSig <- matrix(sprintf("%.3f", out), ncol=ncol(X))
+  outSig[which(p.out > .05, arr.ind=T)] <- ""
+  diag(outSig) <- ""
+  outSig[upper.tri(outSig)] <- ""
+  colnames(outSig) <- colnames(out) <- rownames(outSig) <- rownames(out) <- colnames(p.out) <- rownames(p.out) <- colnames(X)
+  ret <- list(rSig=outSig, r=out, p = p.out )
+  class(ret) <- "pwc"
+  return(ret)
+}
+
+print.pwc <- function(x, ...){
+ print(noquote(x$rSig))
+}
+
+
 GKGamma <- function (x, y = NULL, conf.level = NA, ...){
 ## Function taken from DescTools v0.99.22
     if (!is.null(y))
@@ -1184,4 +1241,35 @@ twoWayTable.iscss <- function(){
     tkgrid(labelRcmdr(optionsTab, text=gettextRcmdr("Plot Residuals"), fg=getRcmdr("title.color"), font="RcmdrTitleFont"), sticky="w")
     tkgrid(sdresFrame, sticky="w")
     dialogSuffix(use.tabs=TRUE, grid.buttons=TRUE, tab.names=c("Data", "Statistics"))
+}
+
+pwCorr.iscss <- function(){
+    dialog.values <- getDialog("pwCorr.iscss", list(initial.x=NULL, initial.method="t"))
+    initializeDialog(title=gettextRcmdr("Pairwise Correlation Matrix"))
+    xBox <- variableListBox(top, selectmode="multiple", title=gettextRcmdr("Variables (pick two or more)"),
+                            initialSelection=NULL)
+    optFrame <- tkframe(top)
+    dataSet <- activeDataSet()
+    onOK <- function(){
+        x <- getSelection(xBox)
+        method <- tclvalue(methodVariable)
+        putDialog("pwCorr.iscss", list(
+            initial.method=method, initial.x=x))
+        vars <- paste("c(", paste('"', x, '"', collapse=", ", sep=""), ")", sep="")
+        command <- paste("pwCorrMat(", ActiveDataSet(), "[,", vars, "], method='", method, "')", sep="")
+        doItAndPrint(command)
+        tkfocus(CommanderWindow())
+        closeDialog()
+    }
+    OKCancelHelp(helpSubject="pwCorr.iscss")
+    radioButtons(top, name = "method", buttons = c("t", "z", "sim"), values = c("t", "z", "sim"),
+                 labels = gettextRcmdr(c("T-test", "Fisher's Z-test", "Simulation")),
+                 title = gettextRcmdr("Method for Evaluating Significance"),
+                 initialValue = dialog.values$initial.method)
+    tkgrid(getFrame(xBox), sticky = "nw")
+    tkgrid(labelRcmdr(optFrame, text=gettextRcmdr("Method for Inference")), sticky="w")
+    tkgrid(optFrame, sticky="w")
+    tkgrid(methodFrame, optFrame, sticky = "w")
+    tkgrid(buttonsFrame, sticky="w")
+    dialogSuffix()
 }

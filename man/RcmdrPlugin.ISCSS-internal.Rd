@@ -33,6 +33,9 @@
 \alias{makeStats}
 \alias{plotStdRes}
 \alias{twoWayTable.iscss}
+\alias{pwCorr.iscss}
+\alias{pwCorrMat}
+\alias{print.pwc}
 \description{Internal RcmdrDemosPlugin objects.}
 \details{These are not to be called by the user.}
 \keyword{internal}

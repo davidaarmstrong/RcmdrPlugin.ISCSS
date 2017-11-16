@@ -19,6 +19,8 @@ item    statsMenu.iscss      command          "Numeric Summaries (all variables)
 item    statsMenu.iscss       command         "Unalikeability..."              unalike.iscss         ""                      ""
 item    statsMenu.iscss       command         "Confidence Interval"              ci.iscss         ""                      ""
 item    statsMenu.iscss       command         "Two-way Tables"              twoWayTable.iscss         ""                      ""
+item    statsMenu.iscss       command         "Pairwise Correlations (with significance)"              pwCorr.iscss         ""                      ""
+
 item    ISCSSMenu        cascade         "Statistics"                                          statsMenu.iscss                    ""          ""
 menu    graphsMenu.iscss    ISCSSMenu         ""                                      ""                          ""                      ""
 item    graphsMenu.iscss      command          "Discrete Histogram..."                                  histDiscrete.iscss                   ""          ""
