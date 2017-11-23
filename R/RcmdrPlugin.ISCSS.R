@@ -347,7 +347,7 @@ unalike <- function(x){
 
 sig.cor <- function(x,y, method=c("z", "t", "sim"), n.sim = 1000, two.sided=TRUE, ...){
 meth <- match.arg(method)
-r <- cor(x,y, ...)
+r <- cor(x,y, use="pairwise.complete.obs", ...)
 n <- sum(!is.na(x)*!is.na(y))
 if(meth == "z"){
   z <- .5*log((1+r)/(1-r))
