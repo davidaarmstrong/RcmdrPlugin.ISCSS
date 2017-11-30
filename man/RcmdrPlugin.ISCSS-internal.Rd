@@ -36,6 +36,8 @@
 \alias{pwCorr.iscss}
 \alias{pwCorrMat}
 \alias{print.pwc}
+\alias{pmc}
+\alias{plotModelCorrs.iscss}
 \description{Internal RcmdrDemosPlugin objects.}
 \details{These are not to be called by the user.}
 \keyword{internal}

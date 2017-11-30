@@ -246,6 +246,13 @@ plotStdRes <- function(x, col=RColorBrewer::brewer.pal(10, "RdBu"), ...){
   lattice::levelplot(res, col.regions=col, cuts=10, at=c(minres, -3, -2, -1, 0, 1, 2, 3, maxres), ...)
 }
 
+pmc <- function(obj, col=RColorBrewer::brewer.pal(6, "RdBu"), ...){
+  X <- model.matrix(obj)[,-1]
+  R <- cor(X)
+  diag(R) <- 0
+  return(lattice:::levelplot(R, at=c(-1, -.75, -.5, 0, .5, .75, 1), col.regions=col, ..., xlab="", ylab="", scales=list(x=list(rot=90))))
+}
+
 plotCIgroup <- function(form, data, horiz=FALSE,
     arrowlen = 0, includeOverall=TRUE, distr=c("normal", "t"), conflevel = .95, las=2, ...){
     mf <- model.frame(form, data)
@@ -1275,4 +1282,10 @@ pwCorr.iscss <- function(){
     tkgrid(methodFrame, optFrame, sticky = "w")
     tkgrid(buttonsFrame, sticky="w")
     dialogSuffix()
+}
+
+plotModelCorrs.iscss <- function(){
+	.activeModel <- ActiveModel()
+	if (is.null(.activeModel)) return()
+	doItAndPrint(paste("pmc(", .activeModel, ")", sep=""))
 }
